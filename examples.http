@@ -1,0 +1,15 @@
+@host = localhost:6969
+@username = jurgis
+
+###
+GET http://{{host}}/devices
+
+###
+GET http://{{host}}/subnets
+
+###
+GET http://{{host}}/locations
+
+###
+@device = 192.168.1.1
+GET http://{{host}}/devices/{{device}}
