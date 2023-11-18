@@ -1,15 +1,44 @@
 @host = localhost:6969
-@username = jurgis
 
 ###
-GET http://{{host}}/devices
+@mac = AA:BB:CC:DD:EE:04
+GET http://{{host}}/devices/mac/{{mac}}
 
 ###
-GET http://{{host}}/subnets
+POST http://{{host}}/devices
+Content-Type: application/json
+
+{
+    "ip": "192.168.1.111",
+    "name": "Fancy Thinkpad",
+    "type": "Workstation",
+    "mac": "AA:BB:CC:DD:EE:10",
+    "locationName": "Headquarters",
+    "routerMac": "AA:BB:CC:DD:EE:01"
+}
 
 ###
-GET http://{{host}}/locations
+POST http://{{host}}/locations
+Content-Type: application/json
+
+{
+    "name": "Fancy New Location Name",
+    "address": "Little Saint James 2"
+}
 
 ###
-@device = 192.168.1.1
-GET http://{{host}}/devices/{{device}}
+@locationName = Headquarters
+GET http://{{host}}/devices/location/{{locationName}}
+
+###
+@deviceName = Laptop
+GET http://{{host}}/devices/hops/{{deviceName}}?maxHops=2
+
+###
+@start = AA:BB:CC:DD:EE:04
+@end = AA:BB:CC:DD:EE:08
+GET http://{{host}}/devices/path/{{start}}/{{end}}
+
+###
+@location = Headquarters
+GET http://{{host}}/devices/count/{{location}}
