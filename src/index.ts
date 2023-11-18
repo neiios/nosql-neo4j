@@ -31,17 +31,44 @@ app.get("/devices/mac/:mac", async (req: Request, res: Response) => {
 app.post("/devices", async (req, res) => {
   const session = getSession();
   try {
-    const { name, mac, ip, type, locationName, routerMac } = req.body;
+    const {
+      name,
+      mac,
+      ip,
+      type,
+      locationName,
+      routerMac,
+      connectionType,
+      bandwidthMbps,
+      latencyMs,
+      packetLoss,
+    } = req.body;
     const result = await session.run(
       `
       MATCH (location:Location { name: $locationName })
       MATCH (router:Device { mac: $routerMac })
       CREATE (device:Device { name: $name, mac: $mac, ip: $ip, type: $type })
       MERGE (device)-[:LOCATED_IN]->(location)
-      MERGE (device)-[:CONNECTED_TO]->(router)
+      MERGE (device)-[:CONNECTED_TO {
+        type: $connectionType, 
+        bandwidth_mbps: $bandwidthMbps, 
+        latency_ms: $latencyMs, 
+        packet_loss: $packetLoss
+      }]->(router)
       RETURN device, location, router
     `,
-      { name, mac, ip, type, locationName, routerMac },
+      {
+        name,
+        mac,
+        ip,
+        type,
+        locationName,
+        routerMac,
+        connectionType,
+        bandwidthMbps,
+        latencyMs,
+        packetLoss,
+      },
     );
 
     const createdDevice = result.records.map((record) => {
