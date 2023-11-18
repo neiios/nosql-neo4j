@@ -12,11 +12,10 @@ WHERE startDevice <> endDevice
 RETURN endDevice AS ConnectedDevice, LENGTH(path) AS NumberOfHops;
 
 // 2.4 Find Shortest Path Considering Weights (actually 2.5 as well)
-MATCH path = (start:Device { name: 'Laptop' })-[:CONNECTED_TO*..10]-(end:Device { name: 'NAS' })
-WITH path, REDUCE(s = 0, r IN relationships(path) | s + r.latency_ms) AS totalLatency
-RETURN path AS ShortestPath, totalLatency
-ORDER BY totalLatency ASC
-LIMIT 1;
+MATCH (start:Device { mac: 'AA:BB:CC:DD:EE:04' })
+MATCH (end:Device { mac: 'AA:BB:CC:DD:EE:06' })
+MATCH path = shortestPath((start)-[rels:CONNECTED_TO*..10]-(end))
+RETURN path, reduce(totalLatency = 0, r in rels | totalLatency + r.latency_ms) AS totalLatency
 
 // 2.5 Aggregate Data
 MATCH (d:Device)-[:LOCATED_IN]->(l:Location { name: 'Headquarters' })

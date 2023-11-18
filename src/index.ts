@@ -140,18 +140,17 @@ app.get(
 
       const result = await session.run(
         `
-      MATCH path = (start:Device { mac: $startDevice })-[:CONNECTED_TO*..10]-(end:Device { mac: $endDevice })
-      WITH path, REDUCE(s = 0, r IN relationships(path) | s + r.latency_ms) AS totalLatency
-      RETURN path AS shortestPath, totalLatency
-      ORDER BY totalLatency ASC
-      LIMIT 1
+        MATCH (start:Device { mac: $startDevice })
+        MATCH (end:Device { mac: $endDevice })
+        MATCH path = shortestPath((start)-[rels:CONNECTED_TO*..10]-(end))
+        RETURN path, reduce(totalLatency = 0, r in rels | totalLatency + r.latency_ms) AS totalLatency
     `,
         { startDevice, endDevice },
       );
 
       const paths = result.records.map((record) => ({
         path: record
-          .get("shortestPath")
+          .get("path")
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .segments.map((segment: any) => ({
             start: {
