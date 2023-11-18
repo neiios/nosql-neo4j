@@ -46,7 +46,7 @@ app.post("/devices", async (req, res) => {
     const result = await session.run(
       `
       MATCH (location:Location { name: $locationName })
-      MATCH (router:Device { mac: $routerMac })
+      MATCH (router:Device { mac: $routerMac, type: "Router" })
       CREATE (device:Device { name: $name, mac: $mac, ip: $ip, type: $type })
       MERGE (device)-[:LOCATED_IN]->(location)
       MERGE (device)-[:CONNECTED_TO {
