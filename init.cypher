@@ -5,6 +5,7 @@ CREATE
   (router1:Device { name: 'Router1', type: 'Router', ip: '192.168.1.1', subnet: '192.168.1.0/24', mac: 'AA:BB:CC:DD:EE:01' }),
   (router2:Device { name: 'Router2', type: 'Router', ip: '192.168.2.1', subnet: '192.168.2.0/24', mac: 'AA:BB:CC:DD:EE:02' }),
   (router3:Device { name: 'Router3', type: 'Router', ip: '192.168.3.1', subnet: '192.168.3.0/24', mac: 'AA:BB:CC:DD:EE:03' }),
+  (router4:Device { name: 'Router4', type: 'Router', ip: '192.168.4.1', subnet: '192.168.4.0/24', mac: 'AA:BB:CC:DD:EE:10' }),
 
   // Existing device nodes
   (d1:Device { name: 'Laptop', type: 'Workstation', ip: '192.168.1.10', mac: 'AA:BB:CC:DD:EE:04' }),
@@ -20,8 +21,8 @@ CREATE
   (l3:Location { name: 'Remote Office', address: 'Little Saint James' }),
 
   // User nodes
-  (u1:User { name: 'Alice' }),
-  (u2:User { name: 'Bob' }),
+  (u1:User { name: 'Alice', email: 'alice@whitehouse.gov' }),
+  (u2:User { name: 'Bob', email: 'bob@cia.gov' }),
 
   // Relationships for devices in locations
   (router1)-[:LOCATED_IN]->(l1),
@@ -29,6 +30,7 @@ CREATE
   (d2)-[:LOCATED_IN]->(l1),
   (d6)-[:LOCATED_IN]->(l1),
   (router2)-[:LOCATED_IN]->(l2),
+  (router4)-[:LOCATED_IN]->(l2),
   (d4)-[:LOCATED_IN]->(l2),
   (d5)-[:LOCATED_IN]->(l2),
   (router3)-[:LOCATED_IN]->(l3),
@@ -48,8 +50,11 @@ CREATE
 
   // Connection between the routers
   (router1)-[:CONNECTED_TO { type: 'Fiber', bandwidth_mbps: 10000, latency_ms: 2, packet_loss: '0.05%' }]->(router2),
-  (router2)-[:CONNECTED_TO { type: 'Coax', bandwidth_mbps: 10, latency_ms: 150, packet_loss: '20%' }]->(router3);
+  (router2)-[:CONNECTED_TO { type: 'Coax', bandwidth_mbps: 10, latency_ms: 150, packet_loss: '20%' }]->(router3),
+  (router2)-[:CONNECTED_TO { type: 'Fiber', bandwidth_mbps: 10000, latency_ms: 20, packet_loss: '0.01%' }]->(router4),
+  (router4)-[:CONNECTED_TO { type: 'Fiber', bandwidth_mbps: 10000, latency_ms: 30, packet_loss: '0.01%' }]->(router3);
 
 CREATE CONSTRAINT unique_device_mac IF NOT EXISTS FOR (d:Device) REQUIRE d.mac IS UNIQUE;
 CREATE CONSTRAINT unique_location_address IF NOT EXISTS FOR (l:Location) REQUIRE l.address IS UNIQUE; 
-CREATE CONSTRAINT unique_name IF NOT EXISTS FOR (l:Location) REQUIRE l.name IS UNIQUE; 
+CREATE CONSTRAINT unique_location_name IF NOT EXISTS FOR (l:Location) REQUIRE l.name IS UNIQUE; 
+CREATE CONSTRAINT unique_user_email IF NOT EXISTS FOR (u:User) REQUIRE u.email IS UNIQUE; 

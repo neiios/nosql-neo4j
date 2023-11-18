@@ -2,7 +2,7 @@
 
 ###
 @mac = AA:BB:CC:DD:EE:04
-GET http://{{host}}/devices/mac/{{mac}}
+GET http://{{host}}/devices/{{mac}}
 
 ###
 POST http://{{host}}/devices
@@ -31,18 +31,22 @@ Content-Type: application/json
 }
 
 ###
+@email = alice@whitehouse.gov
+GET http://{{host}}/users/{{email}}/devices
+
+###
 @locationName = Headquarters
-GET http://{{host}}/devices/location/{{locationName}}
+GET http://{{host}}/locations/{{locationName}}/devices
 
 ###
-@deviceName = Laptop
-GET http://{{host}}/devices/hops/{{deviceName}}?maxHops=2
+@device = AA:BB:CC:DD:EE:04
+GET http://{{host}}/hops/{{device}}
 
 ###
-@start = AA:BB:CC:DD:EE:04
-@end = AA:BB:CC:DD:EE:08
-GET http://{{host}}/devices/path/{{start}}/{{end}}
+@start = AA:BB:CC:DD:EE:09
+@end = AA:BB:CC:DD:EE:06
+GET http://{{host}}/dijkstra/{{start}}/{{end}}
 
 ###
 @location = Headquarters
-GET http://{{host}}/devices/count/{{location}}
+GET http://{{host}}/locations/{{location}}/count

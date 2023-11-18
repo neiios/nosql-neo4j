@@ -9,7 +9,8 @@ const port = process.env.PORT || 3000;
 
 app.use(express.json());
 
-app.get("/devices/mac/:mac", async (req: Request, res: Response) => {
+// get a device by its mac address
+app.get("/devices/:mac", async (req: Request, res: Response) => {
   const session = getSession();
   try {
     const macAddress = req.params.mac;
@@ -28,6 +29,7 @@ app.get("/devices/mac/:mac", async (req: Request, res: Response) => {
   }
 });
 
+// add a new device (need to specify connection)
 app.post("/devices", async (req, res) => {
   const session = getSession();
   try {
@@ -87,6 +89,7 @@ app.post("/devices", async (req, res) => {
   }
 });
 
+// add a new location
 app.post("/locations", async (req, res) => {
   const session = getSession();
   try {
@@ -110,8 +113,56 @@ app.post("/locations", async (req, res) => {
   }
 });
 
+// add a new user
+app.post("/users", async (req, res) => {
+  const session = getSession();
+  try {
+    const { name, email } = req.body;
+    const result = await session.run(
+      `CREATE (u:User { name: $name, email: $email }) RETURN u`,
+      { name, email },
+    );
+
+    const createdUser = result.records.map((record) => {
+      return {
+        user: record.get("u").properties,
+      };
+    });
+
+    res.json(createdUser[0]);
+  } catch (error) {
+    res.status(500).send("Error creating the new user");
+  } finally {
+    await session.close();
+  }
+});
+
+// finds all devices a user has access to
+app.get("/users/:email/devices", async (req: Request, res: Response) => {
+  const session = getSession();
+  try {
+    const email = req.params.email;
+    const result = await session.run(
+      `
+      MATCH (user:User { email: $email })-[:ACCESSES]->(device:Device)
+      RETURN device
+    `,
+      { email },
+    );
+    const devices = result.records.map(
+      (record) => record.get("device").properties,
+    );
+    res.json(devices);
+  } catch (error) {
+    res.status(500).send("Error retrieving devices accessed by a user");
+  } finally {
+    await session.close();
+  }
+});
+
+// finds all devices in a specific location
 app.get(
-  "/devices/location/:locationName",
+  "/locations/:locationName/devices",
   async (req: Request, res: Response) => {
     const session = getSession();
     try {
@@ -132,17 +183,18 @@ app.get(
   },
 );
 
-app.get("/devices/hops/:deviceName", async (req: Request, res: Response) => {
+// finds a number of hops from a device to all other devices
+app.get("/hops/:device", async (req: Request, res: Response) => {
   const session = getSession();
   try {
-    const deviceName = req.params.deviceName;
+    const device = req.params.device;
     const result = await session.run(
       `
-      MATCH path = (startDevice:Device { name: $deviceName })-[:CONNECTED_TO*..10]-(endDevice:Device)
+      MATCH path = (startDevice:Device { mac: $device })-[:CONNECTED_TO*..10]-(endDevice:Device)
       WHERE startDevice <> endDevice
       RETURN endDevice AS ConnectedDevice, LENGTH(path) AS NumberOfHops
     `,
-      { deviceName },
+      { device },
     );
     const connectedDevices = result.records.map((record) => ({
       connectedDevice: record.get("ConnectedDevice").properties,
@@ -157,71 +209,71 @@ app.get("/devices/hops/:deviceName", async (req: Request, res: Response) => {
   }
 });
 
+// finds the shortest path (using latency as weight) from a device to another device
+app.get("/dijkstra/:startDevice/:endDevice", async (req, res) => {
+  const session = getSession();
+  try {
+    const startDevice = req.params.startDevice;
+    const endDevice = req.params.endDevice;
+
+    const result = await session.run(
+      `
+        MATCH (start:Device { mac: $startDevice }), (end:Device { mac: $endDevice })
+        CALL apoc.algo.dijkstra(start, end, 'CONNECTED_TO', 'latency_ms') 
+        YIELD path, weight
+        RETURN nodes(path) AS nodePath, weight AS totalLatency
+        `,
+      { startDevice, endDevice },
+    );
+
+    if (result.records.length === 0) {
+      return res.status(404).send("No path found.");
+    }
+
+    const nodePath = result.records[0]
+      .get("nodePath")
+      .map((node: { properties: any }) => {
+        return {
+          name: node.properties.name,
+          mac: node.properties.mac,
+          ip: node.properties.ip,
+        };
+      });
+    const totalLatency = result.records[0].get("totalLatency");
+
+    res.json({ nodePath, totalLatency });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Error finding path with least total latency");
+  } finally {
+    await session.close();
+  }
+});
+
+// gets the count of devices in a location
 app.get(
-  "/devices/path/:startDevice/:endDevice",
+  "/locations/:locationName/count",
   async (req: Request, res: Response) => {
     const session = getSession();
     try {
-      const startDevice = req.params.startDevice;
-      const endDevice = req.params.endDevice;
-
+      const locationName = req.params.locationName;
       const result = await session.run(
         `
-        MATCH (start:Device { mac: $startDevice })
-        MATCH (end:Device { mac: $endDevice })
-        MATCH path = shortestPath((start)-[rels:CONNECTED_TO*..10]-(end))
-        RETURN path, reduce(totalLatency = 0, r in rels | totalLatency + r.latency_ms) AS totalLatency
+      MATCH (d:Device)-[:LOCATED_IN]->(l:Location { name: $locationName })
+      RETURN COUNT(d) AS NumberOfDevices
     `,
-        { startDevice, endDevice },
+        { locationName },
       );
-
-      const paths = result.records.map((record) => ({
-        path: record
-          .get("path")
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .segments.map((segment: any) => ({
-            start: {
-              name: segment.start.properties.name,
-              ip: segment.start.properties.ip,
-            },
-            end: {
-              name: segment.end.properties.name,
-              ip: segment.end.properties.ip,
-            },
-          })),
-        latency: record.get("totalLatency").toInt(),
-      }));
-
-      res.json(paths);
+      const numberOfDevices = result.records[0].get("NumberOfDevices").toInt();
+      res.json({ location: locationName, count: numberOfDevices });
     } catch (error) {
       console.error(error);
-      res.status(500).send("Error finding path with least total latency");
+      res.status(500).send("Error counting devices in the specified location");
     } finally {
       await session.close();
     }
   },
 );
-
-app.get("/devices/count/:locationName", async (req: Request, res: Response) => {
-  const session = getSession();
-  try {
-    const locationName = req.params.locationName;
-    const result = await session.run(
-      `
-      MATCH (d:Device)-[:LOCATED_IN]->(l:Location { name: $locationName })
-      RETURN COUNT(d) AS NumberOfDevices
-    `,
-      { locationName },
-    );
-    const numberOfDevices = result.records[0].get("NumberOfDevices").toInt();
-    res.json({ location: locationName, count: numberOfDevices });
-  } catch (error) {
-    console.error(error);
-    res.status(500).send("Error counting devices in the specified location");
-  } finally {
-    await session.close();
-  }
-});
 
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
