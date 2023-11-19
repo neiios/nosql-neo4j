@@ -44,8 +44,9 @@ app.post("/devices", async (req, res) => {
       latencyMs,
       packetLoss,
     } = req.body;
-    const result = await session.run(
-      `
+    const result = await session.executeWrite((tx) =>
+      tx.run(
+        `
       MATCH (location:Location { name: $locationName })
       MATCH (router:Device { mac: $routerMac, type: "Router" })
       CREATE (device:Device { name: $name, mac: $mac, ip: $ip, type: $type })
@@ -56,26 +57,26 @@ app.post("/devices", async (req, res) => {
         latency_ms: $latencyMs, 
         packet_loss: $packetLoss
       }]->(router)
-      RETURN device, location {.address, .name}, router {.name, .mac, .subnet, .ip}
+      RETURN device, router {.name, .mac, .subnet, .ip}
     `,
-      {
-        name,
-        mac,
-        ip,
-        type,
-        locationName,
-        routerMac,
-        connectionType,
-        bandwidthMbps,
-        latencyMs,
-        packetLoss,
-      },
+        {
+          name,
+          mac,
+          ip,
+          type,
+          locationName,
+          routerMac,
+          connectionType,
+          bandwidthMbps,
+          latencyMs,
+          packetLoss,
+        },
+      ),
     );
 
     const createdDevice = result.records.map((record) => {
       return {
         device: record.get("device").properties,
-        location: record.get("location"),
         router: record.get("router"),
       };
     });
