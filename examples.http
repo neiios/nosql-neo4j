@@ -12,7 +12,7 @@ Content-Type: application/json
     "ip": "192.168.1.111",
     "name": "Fancy Thinkpad 2",
     "type": "Workstation",
-    "mac": "AA:BB:CC:DD:EE:44",
+    "mac": "AA:BB:CC:DD:EE:69",
     "locationName": "Headquarters",
     "routerMac": "AA:BB:CC:DD:EE:01",
     "connectionType": "Wifi", 
