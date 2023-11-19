@@ -48,8 +48,9 @@ GET http://{{host}}/users/{{email}}/devices
 GET http://{{host}}/locations/{{locationName}}/devices
 
 ###
-@device = AA:BB:CC:DD:EE:04
-GET http://{{host}}/hops/{{device}}
+@start = AA:BB:CC:DD:EE:09
+@end = AA:BB:CC:DD:EE:06
+GET http://{{host}}/hops/{{start}}/{{end}}
 
 ###
 @start = AA:BB:CC:DD:EE:09

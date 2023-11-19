@@ -22,6 +22,7 @@ app.get("/devices/:mac", async (req: Request, res: Response) => {
 
     res.json(result.records[0].get("device").properties);
   } catch (error) {
+    console.log(error);
     res.status(500).send("Error retrieving device by MAC address");
   } finally {
     await session.close();
@@ -83,6 +84,7 @@ app.post("/devices", async (req, res) => {
 
     res.json(createdDevice[0]);
   } catch (error) {
+    console.log(error);
     res.status(500).send("Error creating device");
   } finally {
     await session.close();
@@ -102,7 +104,7 @@ app.post("/locations", async (req, res) => {
 
     res.json(result.records[0].get("location"));
   } catch (error) {
-    console.log(error);
+    console.error(error);
     res.status(500).send("Error creating the new location");
   } finally {
     await session.close();
@@ -122,6 +124,7 @@ app.post("/users", async (req, res) => {
 
     return res.json(result.records[0].get("user"));
   } catch (error) {
+    console.error(error);
     res.status(500).send("Error creating the new user");
   } finally {
     await session.close();
@@ -148,6 +151,7 @@ app.get("/users/:email/devices", async (req: Request, res: Response) => {
 
     res.json(devices);
   } catch (error) {
+    console.error(error);
     res.status(500).send("Error retrieving devices accessed by a user");
   } finally {
     await session.close();
@@ -171,36 +175,38 @@ app.get("/locations/:codename/devices", async (req: Request, res: Response) => {
 
     res.json(devices);
   } catch (error) {
+    console.error(error);
     res.status(500).send("Error retrieving devices in a specific location");
   } finally {
     await session.close();
   }
 });
 
-// finds a number of hops from a device to all other devices
-app.get("/hops/:device", async (req: Request, res: Response) => {
+// find the all paths (hops needed to get) from a device to another device
+app.get("/hops/:startDevice/:endDevice", async (req, res) => {
   const session = getSession();
   try {
-    const device = req.params.device;
+    const startDevice = req.params.startDevice;
+    const endDevice = req.params.endDevice;
 
     const result = await session.run(
       `
-      MATCH path = (startDevice:Device { mac: $device })-[:CONNECTED_TO*..10]-(endDevice:Device)
+      MATCH path = (startDevice:Device { mac: $startDevice })-[:CONNECTED_TO*..10]-(endDevice:Device { mac: $endDevice })
       WHERE startDevice <> endDevice
-      RETURN endDevice AS ConnectedDevice, LENGTH(path) AS NumberOfHops
+      RETURN [node in nodes(path) | node {.name, .mac, .ip}] AS path, LENGTH(path) AS numberOfHops
     `,
-      { device },
+      { startDevice, endDevice },
     );
 
-    const connectedDevices = result.records.map((record) => ({
-      connectedDevice: record.get("ConnectedDevice").properties,
-      numberOfHops: record.get("NumberOfHops").toInt(),
+    const paths = result.records.map((record) => ({
+      hopsCount: record.get("numberOfHops").toInt(),
+      path: record.get("path"),
     }));
 
-    res.json(connectedDevices);
+    res.json(paths);
   } catch (error) {
     console.error(error);
-    res.status(500).send("Error retrieving connected devices");
+    res.status(500).send("Error retrieving paths");
   } finally {
     await session.close();
   }
