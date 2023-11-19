@@ -16,9 +16,9 @@ CREATE
   (d6:Device { name: 'Desktop', type: 'Workstation', ip: '192.168.1.30', mac: 'AA:BB:CC:DD:EE:09' }),
 
   // Location nodes
-  (l1:Location { name: 'Headquarters', address: '721 Fifth Avenue Manhattan, New York' }),
-  (l2:Location { name: 'Data Center', address: '1000 Colonial Farm Road, Langley, Fairfax County, Virginia' }),
-  (l3:Location { name: 'Remote Office', address: 'Little Saint James' }),
+  (l1:Location { codename: 'Headquarters', address: '721 Fifth Avenue Manhattan, New York' }),
+  (l2:Location { codename: 'Data Center', address: '1000 Colonial Farm Road, Langley, Fairfax County, Virginia' }),
+  (l3:Location { codename: 'Remote Office', address: 'Little Saint James' }),
 
   // User nodes
   (u1:User { name: 'Alice', email: 'alice@whitehouse.gov' }),
@@ -58,3 +58,5 @@ CREATE CONSTRAINT unique_device_mac IF NOT EXISTS FOR (d:Device) REQUIRE d.mac I
 CREATE CONSTRAINT unique_location_address IF NOT EXISTS FOR (l:Location) REQUIRE l.address IS UNIQUE; 
 CREATE CONSTRAINT unique_location_name IF NOT EXISTS FOR (l:Location) REQUIRE l.name IS UNIQUE; 
 CREATE CONSTRAINT unique_user_email IF NOT EXISTS FOR (u:User) REQUIRE u.email IS UNIQUE; 
+
+CREATE INDEX device_mac IF NOT EXISTS FOR (d:Device) ON (d.mac);

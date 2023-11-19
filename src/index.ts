@@ -14,14 +14,13 @@ app.get("/devices/:mac", async (req: Request, res: Response) => {
   const session = getSession();
   try {
     const macAddress = req.params.mac;
+
     const result = await session.run(
       "MATCH (device:Device { mac: $macAddress }) RETURN device",
       { macAddress },
     );
-    const device = result.records.map(
-      (record) => record.get("device").properties,
-    );
-    res.json(device[0]);
+
+    res.json(result.records[0].get("device").properties);
   } catch (error) {
     res.status(500).send("Error retrieving device by MAC address");
   } finally {
@@ -57,7 +56,7 @@ app.post("/devices", async (req, res) => {
         latency_ms: $latencyMs, 
         packet_loss: $packetLoss
       }]->(router)
-      RETURN device, location, router
+      RETURN device, location {.address, .name}, router {.name, .mac, .subnet, .ip}
     `,
       {
         name,
@@ -76,8 +75,8 @@ app.post("/devices", async (req, res) => {
     const createdDevice = result.records.map((record) => {
       return {
         device: record.get("device").properties,
-        location: record.get("location").properties,
-        router: record.get("router").properties,
+        location: record.get("location"),
+        router: record.get("router"),
       };
     });
 
@@ -94,19 +93,15 @@ app.post("/locations", async (req, res) => {
   const session = getSession();
   try {
     const { name, address } = req.body;
+
     const result = await session.run(
-      `CREATE (l:Location { name: $name, address: $address }) RETURN l`,
+      `CREATE (location:Location { name: $name, address: $address }) RETURN location {.name, .address}`,
       { name, address },
     );
 
-    const createdLocation = result.records.map((record) => {
-      return {
-        location: record.get("l").properties,
-      };
-    });
-
-    res.json(createdLocation[0]);
+    res.json(result.records[0].get("location"));
   } catch (error) {
+    console.log(error);
     res.status(500).send("Error creating the new location");
   } finally {
     await session.close();
@@ -118,18 +113,13 @@ app.post("/users", async (req, res) => {
   const session = getSession();
   try {
     const { name, email } = req.body;
+
     const result = await session.run(
-      `CREATE (u:User { name: $name, email: $email }) RETURN u`,
+      `CREATE (user:User { name: $name, email: $email }) RETURN user {.name, .email}`,
       { name, email },
     );
 
-    const createdUser = result.records.map((record) => {
-      return {
-        user: record.get("u").properties,
-      };
-    });
-
-    res.json(createdUser[0]);
+    return res.json(result.records[0].get("user"));
   } catch (error) {
     res.status(500).send("Error creating the new user");
   } finally {
@@ -142,6 +132,7 @@ app.get("/users/:email/devices", async (req: Request, res: Response) => {
   const session = getSession();
   try {
     const email = req.params.email;
+
     const result = await session.run(
       `
       MATCH (user:User { email: $email })-[:ACCESSES]->(device:Device)
@@ -149,9 +140,11 @@ app.get("/users/:email/devices", async (req: Request, res: Response) => {
     `,
       { email },
     );
+
     const devices = result.records.map(
       (record) => record.get("device").properties,
     );
+
     res.json(devices);
   } catch (error) {
     res.status(500).send("Error retrieving devices accessed by a user");
@@ -161,33 +154,34 @@ app.get("/users/:email/devices", async (req: Request, res: Response) => {
 });
 
 // finds all devices in a specific location
-app.get(
-  "/locations/:locationName/devices",
-  async (req: Request, res: Response) => {
-    const session = getSession();
-    try {
-      const locationName = req.params.locationName;
-      const result = await session.run(
-        "MATCH (device:Device)-[:LOCATED_IN]->(location:Location { name: $locationName }) RETURN device",
-        { locationName },
-      );
-      const devices = result.records.map(
-        (record) => record.get("device").properties,
-      );
-      res.json(devices);
-    } catch (error) {
-      res.status(500).send("Error retrieving devices in a specific location");
-    } finally {
-      await session.close();
-    }
-  },
-);
+app.get("/locations/:codename/devices", async (req: Request, res: Response) => {
+  const session = getSession();
+  try {
+    const codename = req.params.codename;
+
+    const result = await session.run(
+      "MATCH (device:Device)-[:LOCATED_IN]->(location:Location { name: $codename }) RETURN device",
+      { codename },
+    );
+
+    const devices = result.records.map(
+      (record) => record.get("device").properties,
+    );
+
+    res.json(devices);
+  } catch (error) {
+    res.status(500).send("Error retrieving devices in a specific location");
+  } finally {
+    await session.close();
+  }
+});
 
 // finds a number of hops from a device to all other devices
 app.get("/hops/:device", async (req: Request, res: Response) => {
   const session = getSession();
   try {
     const device = req.params.device;
+
     const result = await session.run(
       `
       MATCH path = (startDevice:Device { mac: $device })-[:CONNECTED_TO*..10]-(endDevice:Device)
@@ -196,10 +190,12 @@ app.get("/hops/:device", async (req: Request, res: Response) => {
     `,
       { device },
     );
+
     const connectedDevices = result.records.map((record) => ({
       connectedDevice: record.get("ConnectedDevice").properties,
       numberOfHops: record.get("NumberOfHops").toInt(),
     }));
+
     res.json(connectedDevices);
   } catch (error) {
     console.error(error);
@@ -221,27 +217,19 @@ app.get("/dijkstra/:startDevice/:endDevice", async (req, res) => {
         MATCH (start:Device { mac: $startDevice }), (end:Device { mac: $endDevice })
         CALL apoc.algo.dijkstra(start, end, 'CONNECTED_TO', 'latency_ms') 
         YIELD path, weight
-        RETURN nodes(path) AS nodePath, weight AS totalLatency
+        RETURN [node in nodes(path) | node {.name, .mac, .ip}] AS path, weight AS totalLatency
         `,
       { startDevice, endDevice },
     );
 
     if (result.records.length === 0) {
-      return res.status(404).send("No path found.");
+      return res.status(404).send("No path found");
     }
 
-    const nodePath = result.records[0]
-      .get("nodePath")
-      .map((node: { properties: any }) => {
-        return {
-          name: node.properties.name,
-          mac: node.properties.mac,
-          ip: node.properties.ip,
-        };
-      });
+    const path = result.records[0].get("path");
     const totalLatency = result.records[0].get("totalLatency");
 
-    res.json({ nodePath, totalLatency });
+    res.json({ totalLatency, path });
   } catch (error) {
     console.error(error);
     res.status(500).send("Error finding path with least total latency");
@@ -251,29 +239,29 @@ app.get("/dijkstra/:startDevice/:endDevice", async (req, res) => {
 });
 
 // gets the count of devices in a location
-app.get(
-  "/locations/:locationName/count",
-  async (req: Request, res: Response) => {
-    const session = getSession();
-    try {
-      const locationName = req.params.locationName;
-      const result = await session.run(
-        `
-      MATCH (d:Device)-[:LOCATED_IN]->(l:Location { name: $locationName })
+app.get("/locations/:codename/count", async (req: Request, res: Response) => {
+  const session = getSession();
+  try {
+    const codename = req.params.codename;
+
+    const result = await session.run(
+      `
+      MATCH (d:Device)-[:LOCATED_IN]->(l:Location { codename: $codename })
       RETURN COUNT(d) AS NumberOfDevices
     `,
-        { locationName },
-      );
-      const numberOfDevices = result.records[0].get("NumberOfDevices").toInt();
-      res.json({ location: locationName, count: numberOfDevices });
-    } catch (error) {
-      console.error(error);
-      res.status(500).send("Error counting devices in the specified location");
-    } finally {
-      await session.close();
-    }
-  },
-);
+      { codename },
+    );
+
+    const numberOfDevices = result.records[0].get("NumberOfDevices").toInt();
+
+    res.json({ location: codename, numberOfConnectedDevices: numberOfDevices });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Error counting devices in the specified location");
+  } finally {
+    await session.close();
+  }
+});
 
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);

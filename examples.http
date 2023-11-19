@@ -10,9 +10,9 @@ Content-Type: application/json
 
 {
     "ip": "192.168.1.111",
-    "name": "Fancy Thinkpad",
+    "name": "Fancy Thinkpad 2",
     "type": "Workstation",
-    "mac": "AA:BB:CC:DD:EE:10",
+    "mac": "AA:BB:CC:DD:EE:44",
     "locationName": "Headquarters",
     "routerMac": "AA:BB:CC:DD:EE:01",
     "connectionType": "Wifi", 
@@ -28,6 +28,15 @@ Content-Type: application/json
 {
     "name": "Fancy New Location Name",
     "address": "Little Saint James 2"
+}
+
+###
+POST http://{{host}}/users
+Content-Type: application/json
+
+{
+    "name": "Jonas Jonaitis",
+    "email": "jonas@delfiss.lt"
 }
 
 ###
