@@ -16,9 +16,9 @@ CREATE
   (d6:Device { name: 'Desktop', type: 'Workstation', ip: '192.168.1.30', mac: 'AA:BB:CC:DD:EE:09' }),
 
   // Location nodes
-  (l1:Location { codename: 'Headquarters', address: '721 Fifth Avenue Manhattan, New York' }),
-  (l2:Location { codename: 'Data Center', address: '1000 Colonial Farm Road, Langley, Fairfax County, Virginia' }),
-  (l3:Location { codename: 'Remote Office', address: 'Little Saint James' }),
+  (l1:Location { name: 'Headquarters', address: '721 Fifth Avenue Manhattan, New York' }),
+  (l2:Location { name: 'Data Center', address: '1000 Colonial Farm Road, Langley, Fairfax County, Virginia' }),
+  (l3:Location { name: 'Remote Office', address: 'Little Saint James' }),
 
   // User nodes
   (u1:User { name: 'Alice', email: 'alice@whitehouse.gov' }),

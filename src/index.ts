@@ -159,14 +159,14 @@ app.get("/users/:email/devices", async (req: Request, res: Response) => {
 });
 
 // finds all devices in a specific location
-app.get("/locations/:codename/devices", async (req: Request, res: Response) => {
+app.get("/locations/:name/devices", async (req: Request, res: Response) => {
   const session = getSession();
   try {
-    const codename = req.params.codename;
+    const name = req.params.name;
 
     const result = await session.run(
-      "MATCH (device:Device)-[:LOCATED_IN]->(location:Location { name: $codename }) RETURN device",
-      { codename },
+      "MATCH (device:Device)-[:LOCATED_IN]->(location:Location { name: $name }) RETURN device",
+      { name },
     );
 
     const devices = result.records.map(
@@ -246,22 +246,22 @@ app.get("/dijkstra/:startDevice/:endDevice", async (req, res) => {
 });
 
 // gets the count of devices in a location
-app.get("/locations/:codename/count", async (req: Request, res: Response) => {
+app.get("/locations/:name/count", async (req: Request, res: Response) => {
   const session = getSession();
   try {
-    const codename = req.params.codename;
+    const name = req.params.name;
 
     const result = await session.run(
       `
-      MATCH (d:Device)-[:LOCATED_IN]->(l:Location { codename: $codename })
+      MATCH (d:Device)-[:LOCATED_IN]->(l:Location { name: $name })
       RETURN COUNT(d) AS NumberOfDevices
     `,
-      { codename },
+      { name },
     );
 
     const numberOfDevices = result.records[0].get("NumberOfDevices").toInt();
 
-    res.json({ location: codename, numberOfConnectedDevices: numberOfDevices });
+    res.json({ location: name, numberOfConnectedDevices: numberOfDevices });
   } catch (error) {
     console.error(error);
     res.status(500).send("Error counting devices in the specified location");
